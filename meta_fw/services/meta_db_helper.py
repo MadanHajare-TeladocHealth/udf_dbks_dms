@@ -6,8 +6,8 @@ main_logger = get_logger()
 
 
 class MetaDbHelper:
-    def __init__(self, meta_env, db_user, db_pass):
-        self.meta_env = meta_env
+    def __init__(self,db_user,db_pass,meta_sch,meta_host,meta_port ):
+        #self.meta_env = meta_env
         self.db_user = db_user
         self.db_pass = db_pass
         self.meta_conn_engine = None
@@ -38,5 +38,5 @@ class MetaDbHelper:
                                                                        )
 
     def start_here(self):
-        self._set_meta_schema()
+        #self._set_meta_schema()
         self._set_meta_conn()

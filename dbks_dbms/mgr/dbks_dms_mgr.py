@@ -32,26 +32,24 @@ main_logger = get_logger()
 
 
 class DbksDmsMgr:
-    def __init__(self, step_id, meta_env, mysql_user, mysql_pass, redshift_user, redshift_pass):
-        self.step_id = step_id
-        self.meta_env = meta_env
-        self.cred_obj = DbksCredMgr(meta_db_user=mysql_user, meta_db_pass=mysql_pass
-                                    , mysql_user=mysql_user, mysql_pass=mysql_pass
-                                    , redshift_user=redshift_user, redshift_pass=redshift_pass)
-        self.meta_db_obj = MetaDbHelper(meta_env=self.meta_env,
-                                        db_user=self.cred_obj.meta_db_user,
-                                        db_pass=self.cred_obj.meta_db_pass)
-        self.meta_conf_obj = MetaFrameworkConfig(step_id=self.step_id, meta_conn=self.meta_db_obj.meta_conn_engine,
-                                                 meta_sch=self.meta_db_obj.meta_sch)
-        self.user_conf_obj = UserConfig(user_conf_str=self.meta_conf_obj.ms_obj.src_qry)
-        self.app_name = settings.dms_spark_app_name
+    def __init__(step_info,mysql_credetails,redshift_credentails):
+        self.step_id = step_info
+        self.meta_env = None
+  
+        self.cred_obj = DbksCredMgr(mysql_credetails,redshift_credentails)
+        self.meta_db_obj = MetaDbHelper(self.cred_obj.mysql_user,self.cred_obj.mysql_pass,
+                                        self.cred_obj.sch,self.cred_obj.mysql_ip,self.cred_obj.mysql_port)
+        #self.meta_conf_obj = MetaFrameworkConfig(step_id=self.step_id, meta_conn=self.meta_db_obj.meta_conn_engine,
+        #                                         meta_sch=self.meta_db_obj.meta_sch)
+        self.user_conf_obj = UserConfig(step_info)
+        #self.app_name = settings.dms_spark_app_name
 
         self.spark_obj = self._get_spark_inst()
 
     def _get_spark_inst(self):
-        main_logger.info(f"Creating spark session with app name :{self.app_name}")
-        spark = SparkSession.builder.getOrCreate()
-        spk_conf = spark.sparkContext.getConf().getAll()
+        #main_logger.info(f"Creating spark session with app name :{self.app_name}")
+        #spark = SparkSession.builder.getOrCreate()
+        #spk_conf = spark.sparkContext.getConf().getAll()
         # main_logger.info(f"Spark configuration {spk_conf}")
         return spark
 
