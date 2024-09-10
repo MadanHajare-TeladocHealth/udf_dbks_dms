@@ -32,11 +32,11 @@ main_logger = get_logger()
 
 
 class DbksDmsMgr:
-    def __init__(step_info,mysql_credetails,redshift_credentails):
+    def __init__(self,step_info,*all_credetails):
         self.step_id = step_info
         self.meta_env = None
   
-        self.cred_obj = DbksCredMgr(mysql_credetails,redshift_credentails)
+        self.cred_obj = DbksCredMgr(all_credetails)
         self.meta_db_obj = MetaDbHelper(self.cred_obj.mysql_user,self.cred_obj.mysql_pass,
                                         self.cred_obj.sch,self.cred_obj.mysql_ip,self.cred_obj.mysql_port)
         #self.meta_conf_obj = MetaFrameworkConfig(step_id=self.step_id, meta_conn=self.meta_db_obj.meta_conn_engine,

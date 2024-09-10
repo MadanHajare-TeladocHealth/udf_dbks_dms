@@ -1,7 +1,7 @@
 class DbksCredMgr:
-    def __init__(self, mysql_credetails,redshift_credentails):
-        mysql_ip,mysql_port,mysql_username,mysql_password=mysql_credetails
-        redshift_user,redshift_pass=redshift_credentails
+    def __init__(self, all_credetails):
+        mysql_ip,mysql_port,mysql_username,mysql_password,redshift_user,redshift_pass=all_credetails
+        #=redshift_credentails
         self.meta_db_user = None
         self.meta_db_pass = None
         self.mysql_ip=mysql_ip
