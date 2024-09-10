@@ -8,7 +8,7 @@ from pathlib import Path
 import datetime as dt
 import settings
 
-import test_setup
+#import test_setup
 
 main_logger = get_logger()
 
