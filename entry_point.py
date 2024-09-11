@@ -7,14 +7,15 @@ import os
 from pathlib import Path
 import datetime as dt
 import settings
+import importlib
 
 #import test_setup
 
 main_logger = get_logger()
 
 
-def start_dbks_dms(step_info,*all_credetails):
-
+def start_dbks_dms(step_info,all_credetails):
+    
     main_logger.info(f"Processing meta step id : {step_info['src_tbl']}")
     master_obj = DbksDmsMgr(step_info,all_credetails)
     #master_obj.provision_dms()

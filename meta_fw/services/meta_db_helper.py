@@ -11,9 +11,9 @@ class MetaDbHelper:
         self.db_user = db_user
         self.db_pass = db_pass
         self.meta_conn_engine = None
-        self.meta_sch = None
-        self.meta_host = None
-        self.meta_port = None
+        self.meta_sch = meta_sch
+        self.meta_host = meta_host
+        self.meta_port = meta_port
 
         self.start_here()
 
@@ -27,9 +27,9 @@ class MetaDbHelper:
 
     def _set_meta_conn(self):
 
-        self.meta_host, self.meta_port = mysql_connect.get_edw_mysql_env_host_port(self.meta_env)
+        #self.meta_host, self.meta_port = mysql_connect.get_edw_mysql_env_host_port(self.meta_env)
 
-        main_logger.info(f"setting up meta_connection using :{self.meta_host},{self.meta_port}")
+        #main_logger.info(f"setting up meta_connection using :{self.meta_host},{self.meta_port}")
         self.meta_conn_engine = mysql_connect.get_mysql_alchemy_engine(host=self.meta_host,
                                                                        port=self.meta_port,
                                                                        ip_user=self.db_user,

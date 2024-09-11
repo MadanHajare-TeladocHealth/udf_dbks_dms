@@ -32,7 +32,7 @@ main_logger = get_logger()
 
 
 class DbksDmsMgr:
-    def __init__(self,step_info,*all_credetails):
+    def __init__(self,step_info,all_credetails):
         self.step_id = step_info
         self.meta_env = None
   
