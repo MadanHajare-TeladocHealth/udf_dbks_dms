@@ -45,7 +45,7 @@ class UserConfig:
         #self.user_config_str = user_conf_str
         self.cust_src_sql = None
 
-        self.src_db_type = None
+        self.src_db_type = "databricks"
         self.src_db = step_info["src_db"]
         self.src_port = None
         self.src_tbl = step_info["src_tbl"]

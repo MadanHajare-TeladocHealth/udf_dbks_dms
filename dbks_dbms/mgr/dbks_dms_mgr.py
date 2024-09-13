@@ -28,7 +28,10 @@ from dbks_dbms import settings
 # from dbks_dbms.mgr.spark_mgr import DmsSparkMgr
 from pyspark.sql import SparkSession
 
+from databricks.sdk.runtime import *
+
 main_logger = get_logger()
+print("loading database manager")
 
 
 class DbksDmsMgr:
@@ -67,13 +70,14 @@ class DbksDmsMgr:
 
     def _pipeline_router(self):
 
-        _tgt_sch = self.user_conf_obj.tgt_sch
-        _tgt_tbl = self.user_conf_obj.tgt_tbl
+        #_tgt_sch = self.user_conf_obj.tgt_sch
+        #_tgt_tbl = self.user_conf_obj.tgt_tbl
 
-        reader_dt_rng_dict = self._get_data_extraction_dt_rng(_tgt_sch, _tgt_tbl)
+        #reader_dt_rng_dict = self._get_data_extraction_dt_rng(_tgt_sch, _tgt_tbl)
 
-        extract_df = self.get_source_df(reader_dt_rng_dict)
-        self.write_df_to_tgt(source_df=extract_df)
+        extract_df = self.get_source_df()
+        print(f" source rows =  {extract_df.count()} ")
+        #self.write_df_to_tgt(source_df=extract_df)
 
         # self.validate_and_sync_data()
 
@@ -93,34 +97,24 @@ class DbksDmsMgr:
             main_logger.info(f"Using user provided date range :{reader_dt_rng_dict}")
         return reader_dt_rng_dict
 
-    def get_source_df(self, reader_dt_rng_dict):
-        _src_db = self.user_conf_obj.src_db_type.lower()
-        main_logger.info(f"Reading data from :{_src_db}")
-        if _src_db == "databricks":
-            dbks_r_obj = DbksSparkReader(dt_rng_ip_dict=reader_dt_rng_dict
-                                         , user_conf_obj=self.user_conf_obj)
-            source_df = dbks_r_obj.get_dbks_data_df()
-            return source_df
+    def get_source_df(self):
+        row=self.step_id
+        src_db=row["src_db"]
+        src_tbl=row["src_tbl"]
+        tgt_db_typ=row["tgt_db_typ"]
+        tgt_db=row["tgt_db"]
+        tgt_tbl=row["tgt_tbl"]
+        merge_keys=row["merge_keys"]
+        udf_to_rdbms_sync_key=row["udf_to_rdbms_sync_key"]
+        
+        watermark_value = spark.table("udf_internal.udf_to_rdbms_sync_log").where(f"udf_to_rdbms_sync_key='{udf_to_rdbms_sync_key}'").where("current_status='success'").agg({"watermark_value": "max"}).collect()[0][0]
 
-        elif _src_db == "mysql":
-            mysql_r_obj = MysqlReader(
-                cred_obj=self.cred_obj
-                , user_conf_obj=self.user_conf_obj
-                , spark_obj=self.spark_obj
-                , dt_rng_ip_dict=reader_dt_rng_dict
-            )
-            source_df = mysql_r_obj.read_mysql_table()
-            return source_df
-        elif _src_db == "redshift":
-            redshift_r_obj = RedshiftReader(dt_rng_ip_dict=reader_dt_rng_dict,
-                                            user_conf_obj=self.user_conf_obj,
-                                            cred_obj=self.cred_obj,
-                                            spark_obj=self.spark_obj
-                                            )
-            source_df = redshift_r_obj.get_redshift_data_df()
-            return source_df
-        else:
-            raise Exception(f"Extraction failed. Unhandled source db : {_src_db}")
+
+        filter_condition= "1=1" 
+        if watermark_value:
+            filter_condition=f"udf_updated_dt >= '{watermark_value}'"
+        source_df=spark.read.format("delta").load(f"/Volumes/ptudfnpii/npii/{src_db}/reference/{tgt_tbl}/").where(filter_condition)
+        return source_df
 
     def write_df_to_tgt(self, source_df):
         _tgt_db = self.user_conf_obj.tgt_db_type.lower()

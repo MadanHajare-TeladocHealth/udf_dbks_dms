@@ -13,11 +13,14 @@ import importlib
 
 main_logger = get_logger()
 
+print("loading entry point")
 
 def start_dbks_dms(step_info,all_credetails):
     
     main_logger.info(f"Processing meta step id : {step_info['src_tbl']}")
+    print("creating objects")
     master_obj = DbksDmsMgr(step_info,all_credetails)
-    #master_obj.provision_dms()
+    print("calling migration")
+    master_obj.provision_dms()
     return master_obj
 
