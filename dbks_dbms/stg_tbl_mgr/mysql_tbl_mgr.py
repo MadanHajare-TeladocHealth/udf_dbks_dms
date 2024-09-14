@@ -7,29 +7,30 @@ from dbks_dbms.db_settings import mysql_settings
 import sqlalchemy
 
 main_logger = get_logger()
+print("loading mysql table manager")
 
 
 class MysqlTblMgr:
-    tgt_to_stg_sch_map_dict = mysql_settings.TGT_TO_STG_SCH_MAP_DICT
+    #tgt_to_stg_sch_map_dict = mysql_settings.TGT_TO_STG_SCH_MAP_DICT
 
-    def __init__(self, meta_step_obj: MetaStepRecord, user_conf_obj: UserConfig, mysql_user, mysql_pass):
-        self.step_id = meta_step_obj.step_id
-        self.stg_sch = user_conf_obj.stg_sch
+    def __init__(self,  user_conf_obj: UserConfig, cred_obj):
+        #self.step_id = meta_step_obj.step_id
+        self.stg_sch = user_conf_obj.tgt_db
         self.tgt_tbl = user_conf_obj.tgt_tbl
-        self.tgt_sch = user_conf_obj.tgt_sch
-        self.tgt_db = user_conf_obj.tgt_db
-        self.tgt_port = user_conf_obj.tgt_port
+        self.tgt_sch = user_conf_obj.tgt_db
+        self.tgt_db = cred_obj.mysql_ip
+        self.tgt_port = cred_obj.mysql_port
         self.key_col_list = user_conf_obj.key_cols_list
 
-        self.tgt_db_user = mysql_user
-        self.tgt_db_pass = mysql_pass
+        self.tgt_db_user = cred_obj.mysql_user
+        self.tgt_db_pass = cred_obj.mysql_pass
 
-        self.stg_tbl = None
+        self.stg_tbl = user_conf_obj.tgt_tbl+'_udfsync_stg'
         self.hist_sch = None
         self.hist_tbl = None
         self.tgt_conn_engine: sqlalchemy.engine = None
 
-        self.set_up_stg_sch_tbl()
+        #self.set_up_stg_sch_tbl()
         self.set_up_tgt_conn()
         main_logger.info(f"Stage schema and table derived :{self.stg_sch}.{self.stg_tbl}")
 

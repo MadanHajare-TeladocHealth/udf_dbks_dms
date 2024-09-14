@@ -113,7 +113,7 @@ class DbksDmsMgr:
         filter_condition= "1=1" 
         if watermark_value:
             filter_condition=f"udf_updated_dt >= '{watermark_value}'"
-        source_df=spark.read.format("delta").load(f"/Volumes/ptudfnpii/npii/{src_db}/reference/{tgt_tbl}/").where(filter_condition)
+        source_df=spark.read.format("delta").load(f"/{src_db}/{src_tbl}").where(filter_condition)
         return source_df
 
     def write_df_to_tgt(self, source_df):
@@ -121,10 +121,9 @@ class DbksDmsMgr:
 
         if _tgt_db == "mysql":
 
-            tbl_obj = MysqlTblMgr(self.meta_conf_obj.ms_obj
-                                  , self.user_conf_obj
-                                  , self.cred_obj.mysql_user
-                                  , self.cred_obj.mysql_pass)
+            tbl_obj = MysqlTblMgr( self.user_conf_obj
+                                  , self.cred_obj
+                                  )
 
             writer_obj = MysqlWriter(cred_obj=self.cred_obj
                                      , tbl_obj=tbl_obj

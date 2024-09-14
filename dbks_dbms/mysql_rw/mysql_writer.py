@@ -10,6 +10,7 @@ from db import mysql_connect
 
 main_logger = get_logger()
 
+print("loading mysql writer")
 
 class MysqlWriter:
     def __init__(self,
@@ -19,8 +20,9 @@ class MysqlWriter:
 
         # self.tgt_db = mfc_obj.ms_obj.tgt_db
         # self.tgt_port = mfc_obj.ms_obj.tgt_port
-        self.tgt_db = user_conf_obj.tgt_db
-        self.tgt_port = user_conf_obj.tgt_port
+        self.tgt_db = tbl_obj.tgt_db
+        self.tgt_port = tbl_obj.tgt_port
+        print(f"Port from my sql writer {self.tgt_port}")
 
         self.tgt_user = cred_obj.mysql_user
         self.tgt_pass = cred_obj.mysql_pass
@@ -33,9 +35,9 @@ class MysqlWriter:
         self.tgt_sch = user_conf_obj.tgt_sch
         self.tgt_tbl = user_conf_obj.tgt_tbl
 
-        self.ld_type = user_conf_obj.ld_type
+        self.ld_type = 'APPEND'
         self.key_cols_list = user_conf_obj.key_cols_list
-        self.part_rec_cnt = user_conf_obj.part_rec_count
+        self.part_rec_cnt = 50000
 
         self.spark = spark_obj
         self.tgt_conn_engine: sqlalchemy.engine = self.get_tgt_conn()
@@ -100,7 +102,7 @@ class MysqlWriter:
         main_logger.info("Upsert operation completed successfully")
 
     def get_tgt_conn(self):
-        main_logger.info(f"Creating Target connection with default db :{self.stg_sch}")
+        main_logger.info(f"Creating Target connection with default db :{self.stg_sch} , {self.tgt_db} , {self.tgt_port}")
         tgt_conn_engine = mysql_connect.get_mysql_alchemy_engine(host=self.tgt_db,
                                                                  port=self.tgt_port,
                                                                  ip_user=self.tgt_user,
