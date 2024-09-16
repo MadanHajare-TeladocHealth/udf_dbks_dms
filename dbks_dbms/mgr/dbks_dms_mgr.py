@@ -1,5 +1,6 @@
 import datetime as dt
 import sqlalchemy
+import hashlib
 
 from common.logmgr import get_logger
 from dbks_db_cred.cred_mgr import DbksCredMgr
@@ -28,6 +29,8 @@ from dbks_dbms import settings
 # from dbks_dbms.mgr.spark_mgr import DmsSparkMgr
 from pyspark.sql import SparkSession
 
+import pyspark.sql.functions as f
+
 from databricks.sdk.runtime import *
 
 main_logger = get_logger()
@@ -46,7 +49,7 @@ class DbksDmsMgr:
         #                                         meta_sch=self.meta_db_obj.meta_sch)
         self.user_conf_obj = UserConfig(step_info)
         #self.app_name = settings.dms_spark_app_name
-
+        self.watermark=None
         self.spark_obj = self._get_spark_inst()
 
     def _get_spark_inst(self):
@@ -76,10 +79,32 @@ class DbksDmsMgr:
         #reader_dt_rng_dict = self._get_data_extraction_dt_rng(_tgt_sch, _tgt_tbl)
 
         extract_df = self.get_source_df()
-        print(f" source rows =  {extract_df.count()} ")
+        #print(f" source rows =  {extract_df.count()} ")
+        self.watermark=extract_df.agg(f.when(f.count(f.col("udf_updated_dt")) == 0, None).otherwise(f.max(f.col("udf_updated_dt")))).collect()[0][0]
         self.write_df_to_tgt(source_df=extract_df)
+        self._log_dms_status('success')
 
         # self.validate_and_sync_data()
+    
+    def _log_dms_status(self, status):        
+        udf_to_rdbms_sync_key=self.step_id["udf_to_rdbms_sync_key"]
+        current_status=status
+        watermark_value=self.watermark
+        udf_created_dt=dt.datetime.now()
+        udf_created_by='UDF_SYNC_FRMWRK'
+
+        content = udf_to_rdbms_sync_key+'~'+str(udf_created_dt)
+        hash_object = hashlib.sha256(content.encode('utf-8'))  
+        udf_to_rdbms_sync_log_key = hash_object.hexdigest()
+
+
+        data=(udf_to_rdbms_sync_log_key,udf_to_rdbms_sync_key,current_status,watermark_value,udf_created_dt,udf_created_dt,udf_created_by,udf_created_by)
+        schema = spark.table("udf_internal.udf_to_rdbms_sync_log").schema
+        spark.createDataFrame([data],schema).write.mode("append").saveAsTable("udf_internal.udf_to_rdbms_sync_log")
+        main_logger.info(f"logged status: {status} with watermark {self.watermark} into table udf_internal.udf_to_rdbms_sync_log")
+
+
+
 
     def _get_data_extraction_dt_rng(self, _tgt_sch, _tgt_tbl):
         if self.user_conf_obj.user_dt_flg is False:

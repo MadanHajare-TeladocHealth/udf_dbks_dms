@@ -50,7 +50,7 @@ class MysqlWriter:
             main_logger.info(f"writing to table {self.tgt_db}:{self.tgt_port}/{self.stg_sch}.{self.stg_tbl}")
             # added code to only update/insert the common columns to remove the extra columns 
             #from udf tables
-            tgt_df=self.spark.read.format("jdbc").option("url", f"jdbc:mysql://{self.tgt_db}:{self.tgt_port}/{  self.stg_sch}").option("dbtable", self.tgt_tbl).option("user", self.tgt_user).option("password", self.tgt_pass).load()
+            tgt_df=self.spark.read.format("jdbc").option("url", f"jdbc:mysql://{self.tgt_db}:{self.tgt_port}/{self.stg_sch}").option("dbtable", self.tgt_tbl).option("user", self.tgt_user).option("password", self.tgt_pass).load()
             self.common_columns = list(set(extracted_df.columns).intersection(set(tgt_df.columns)))
             extracted_df=extracted_df.select(*self.common_columns)
             # self.spark.sql("DROP TABLE IF EXISTS {self.stg_sch}.{self.stg_tbl}")
