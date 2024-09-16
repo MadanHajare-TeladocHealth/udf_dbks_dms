@@ -40,6 +40,7 @@ class MysqlWriter:
         self.part_rec_cnt = 50000
 
         self.spark = spark_obj
+        self.common_columns = None
         self.tgt_conn_engine: sqlalchemy.engine = self.get_tgt_conn()
 
     def _load_df_to_mysql_stg_tbl(self, extracted_df):
@@ -50,10 +51,11 @@ class MysqlWriter:
             # added code to only update/insert the common columns to remove the extra columns 
             #from udf tables
             tgt_df=self.spark.read.format("jdbc").option("url", f"jdbc:mysql://{self.tgt_db}:{self.tgt_port}/{  self.stg_sch}").option("dbtable", self.tgt_tbl).option("user", self.tgt_user).option("password", self.tgt_pass).load()
-            common_columns = list(set(extracted_df.columns).intersection(set(tgt_df.columns)))
-            extracted_df=extracted_df.select(*common_columns)
+            self.common_columns = list(set(extracted_df.columns).intersection(set(tgt_df.columns)))
+            extracted_df=extracted_df.select(*self.common_columns)
             # self.spark.sql("DROP TABLE IF EXISTS {self.stg_sch}.{self.stg_tbl}")
             # main_logger.info(self.spark.sql(f"desc {self.stg_sch}.{self.stg_tbl}"))
+            main_logger.info(f" source dataframe has {len(extracted_df.columns)} columns and {extracted_df.rdd.getNumPartitions()} partitions and {extracted_df.count()} rows")
             extracted_df.write \
                 .format("jdbc") \
                 .option("url", f"jdbc:mysql://{self.tgt_db}:{self.tgt_port}/{self.stg_sch}") \
@@ -64,7 +66,7 @@ class MysqlWriter:
                 .option("rewriteBatchedStatements", "true") \
                 .mode("overwrite") \
                 .save()
-            main_logger.info(f"Data successfully written into table {self.stg_sch}.{self.stg_tbl}")
+            main_logger.info(f"Data successfully written into table {self.stg_sch}.{self.stg_tbl}")            
         except Exception as e:
             main_logger.error(f"Error in writing data from df to  {self.stg_sch}.{self.stg_tbl}")
             raise e
@@ -84,11 +86,11 @@ class MysqlWriter:
         #ins_sql = f"insert into {self.tgt_sch}.{self.tgt_tbl} select * from {self.stg_sch}.{self.stg_tbl}"
 
         ins_sql = f"""
-        insert into  {self.tgt_sch}.{self.tgt_tbl} ( {','.join(self.key_cols_list)})
-        select {','.join(self.key_cols_list)}
+        insert into  {self.tgt_sch}.{self.tgt_tbl} ( {','.join(self.common_columns)})
+        select {','.join(self.common_columns)}
         from {self.stg_sch}.{self.stg_tbl}
         ON DUPLICATE KEY UPDATE
-        {','.join([f"{col} = VALUES({col})" for col in self.key_cols_list])}
+        {','.join([f"{col} = VALUES({col})" for col in self.common_columns])}
         """
 
         # with self.tgt_conn_engine.begin() as connection:
@@ -101,10 +103,24 @@ class MysqlWriter:
                 #rows_affected = result.rowcount
                 #main_logger.info(f"Number of deleted rows in {self.tgt_sch}.{self.tgt_tbl}: 
                 #{rows_affected}")
+                df_cnt = pd.read_sql(f"select count(*) as cnt from {self.stg_sch}.{self.stg_tbl}", self.tgt_conn_engine.raw_connection())
+                stg_rows_before_merge=df_cnt.iloc[0]['cnt']
+                main_logger.info(f"Number of rows in staging table before upsert operation: {self.stg_sch}.{self.stg_tbl}: {stg_rows_before_merge}")
+
+                df_cnt = pd.read_sql(f"select count(*) as cnt from {self.tgt_sch}.{self.tgt_tbl}", self.tgt_conn_engine.raw_connection())
+                tgt_rows_before_merge=df_cnt.iloc[0]['cnt']
+                main_logger.info(f"Number of rows in target table before upsert operation: {self.tgt_sch}.{self.tgt_tbl}: {tgt_rows_before_merge}")
+
                 result = connection.execute(sqlalchemy.text(ins_sql))
-                rows_affected = result.rowcount
-                updated_rows = rows_affected // 2
-                inserted_rows = rows_affected - updated_rows
+
+                df_cnt = pd.read_sql(f"select count(*) as cnt from {self.tgt_sch}.{self.tgt_tbl}", self.tgt_conn_engine.raw_connection())
+                tgt_rows_after_merge=df_cnt.iloc[0]['cnt']
+                main_logger.info(f"Number of rows in target table after upsert operation: {self.tgt_sch}.{self.tgt_tbl}: {tgt_rows_after_merge}")
+
+                rows_affected = result.rowcount                
+                inserted_rows = tgt_rows_after_merge-tgt_rows_before_merge
+                updated_rows = (rows_affected-inserted_rows) // 2
+
                 main_logger.info(f"Number of inserted rows in {self.tgt_sch}.{self.tgt_tbl}: {inserted_rows} and updated rows : {updated_rows}")
                 # connection.commit()
                 trans.commit()
@@ -149,8 +165,8 @@ class MysqlWriter:
             self.delete_all_rec_in_tbl(self.stg_sch, self.stg_tbl)
             self._load_df_to_mysql_stg_tbl(extracted_df)
             main_logger.info("Provisioning data load from dbks to stage table completed")
-            df_cnt = pd.read_sql(f"select count(*) as cnt from {self.stg_sch}.{self.stg_tbl}", self.tgt_conn_engine.raw_connection())
-            print(f"Record count after data load in table {self.stg_sch}.{self.stg_tbl} {df_cnt.to_dict('records')}")
+            #df_cnt = pd.read_sql(f"select count(*) as cnt from {self.stg_sch}.{self.stg_tbl}", self.tgt_conn_engine.raw_connection())
+            #print(f"Record count after data load in table {self.stg_sch}.{self.stg_tbl} {df_cnt.to_dict('records')}")
             self._upsert_stg_to_tgt()
         else:
             raise Exception(f"Unhandled data load type :{self.ld_type}")
