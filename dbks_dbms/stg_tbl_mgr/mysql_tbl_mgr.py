@@ -15,9 +15,9 @@ class MysqlTblMgr:
 
     def __init__(self,  user_conf_obj: UserConfig, cred_obj):
         #self.step_id = meta_step_obj.step_id
-        self.stg_sch = user_conf_obj.tgt_db
+        self.stg_sch = user_conf_obj.tgt_sch
         self.tgt_tbl = user_conf_obj.tgt_tbl
-        self.tgt_sch = user_conf_obj.tgt_db
+        self.tgt_sch = user_conf_obj.tgt_sch
         self.tgt_db = cred_obj.mysql_ip
         self.tgt_port = cred_obj.mysql_port
         self.key_col_list = user_conf_obj.key_cols_list

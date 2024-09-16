@@ -52,10 +52,10 @@ class UserConfig:
         self.src_sch = None
 
         self.tgt_db_type = step_info["tgt_db_typ"]
-        self.tgt_db = step_info["tgt_db"]
+        self.tgt_db = None
         self.tgt_port = None
         self.tgt_tbl = step_info["tgt_tbl"]
-        self.tgt_sch = None
+        self.tgt_sch = step_info["tgt_db"]
         self.stg_sch = None
         self.stg_tbl = None
 
@@ -65,7 +65,7 @@ class UserConfig:
         self.end_dt = None
 
         self.ld_type = None
-        self.key_cols_list = step_info["merge_keys"]
+        self.key_cols_list = step_info["merge_keys"].split(',')
         self.part_rec_count = None
         self.src_pk_col = None
         self.part_size_mb = 128+2

@@ -47,7 +47,11 @@ class MysqlWriter:
             f"Writing df with partitions {extracted_df.rdd.getNumPartitions()} to table {self.stg_sch}.{self.stg_tbl}")
         try:
             main_logger.info(f"writing to table {self.tgt_db}:{self.tgt_port}/{self.stg_sch}.{self.stg_tbl}")
-
+            # added code to only update/insert the common columns to remove the extra columns 
+            #from udf tables
+            tgt_df=self.spark.read.format("jdbc").option("url", f"jdbc:mysql://{self.tgt_db}:{self.tgt_port}/{  self.stg_sch}").option("dbtable", self.tgt_tbl).option("user", self.tgt_user).option("password", self.tgt_pass).load()
+            common_columns = list(set(extracted_df.columns).intersection(set(tgt_df.columns)))
+            extracted_df=extracted_df.select(*common_columns)
             # self.spark.sql("DROP TABLE IF EXISTS {self.stg_sch}.{self.stg_tbl}")
             # main_logger.info(self.spark.sql(f"desc {self.stg_sch}.{self.stg_tbl}"))
             extracted_df.write \
@@ -57,7 +61,6 @@ class MysqlWriter:
                 .option("user", self.tgt_user) \
                 .option("password", self.tgt_pass) \
                 .option("useSSL", "false") \
-                .option("driver", "com.mysql.jdbc.Driver") \
                 .option("rewriteBatchedStatements", "true") \
                 .mode("overwrite") \
                 .save()
@@ -78,19 +81,31 @@ class MysqlWriter:
         join_key_cond_str = " and ".join([f"stg.{_}=tgt.{_}" for _ in self.key_cols_list])
         del_sql = f"delete tgt from {self.tgt_sch}.{self.tgt_tbl} as tgt " \
                   f"join {self.stg_sch}.{self.stg_tbl} as stg on {join_key_cond_str}"
-        ins_sql = f"insert into {self.tgt_sch}.{self.tgt_tbl} select * from {self.stg_sch}.{self.stg_tbl}"
+        #ins_sql = f"insert into {self.tgt_sch}.{self.tgt_tbl} select * from {self.stg_sch}.{self.stg_tbl}"
+
+        ins_sql = f"""
+        insert into  {self.tgt_sch}.{self.tgt_tbl} ( {','.join(self.key_cols_list)})
+        select {','.join(self.key_cols_list)}
+        from {self.stg_sch}.{self.stg_tbl}
+        ON DUPLICATE KEY UPDATE
+        {','.join([f"{col} = VALUES({col})" for col in self.key_cols_list])}
+        """
 
         # with self.tgt_conn_engine.begin() as connection:
         with self.tgt_conn_engine.connect() as connection:
             try:
                 trans = connection.begin()
-                main_logger.info(f"Delete step sql :{del_sql}")
-                result = connection.execute(sqlalchemy.text(del_sql))
-                rows_affected = result.rowcount
-                main_logger.info(f"Number of deleted rows in {self.tgt_sch}.{self.tgt_tbl}: {rows_affected}")
+                #commented delete step as it is violating the foreign key constraints
+                #main_logger.info(f"Delete step sql :{del_sql}")
+                #result = connection.execute(sqlalchemy.text(del_sql))
+                #rows_affected = result.rowcount
+                #main_logger.info(f"Number of deleted rows in {self.tgt_sch}.{self.tgt_tbl}: 
+                #{rows_affected}")
                 result = connection.execute(sqlalchemy.text(ins_sql))
                 rows_affected = result.rowcount
-                main_logger.info(f"Number of inserted rows in {self.tgt_sch}.{self.tgt_tbl}: {rows_affected}")
+                updated_rows = rows_affected // 2
+                inserted_rows = rows_affected - updated_rows
+                main_logger.info(f"Number of inserted rows in {self.tgt_sch}.{self.tgt_tbl}: {inserted_rows} and updated rows : {updated_rows}")
                 # connection.commit()
                 trans.commit()
             except Exception as e:

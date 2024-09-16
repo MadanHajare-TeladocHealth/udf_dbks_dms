@@ -77,7 +77,7 @@ class DbksDmsMgr:
 
         extract_df = self.get_source_df()
         print(f" source rows =  {extract_df.count()} ")
-        #self.write_df_to_tgt(source_df=extract_df)
+        self.write_df_to_tgt(source_df=extract_df)
 
         # self.validate_and_sync_data()
 
