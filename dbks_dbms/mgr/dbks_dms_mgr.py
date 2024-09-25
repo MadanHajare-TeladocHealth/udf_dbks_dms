@@ -43,8 +43,8 @@ class DbksDmsMgr:
         self.meta_env = None
   
         self.cred_obj = DbksCredMgr(all_credetails)
-        self.meta_db_obj = MetaDbHelper(self.cred_obj.mysql_user,self.cred_obj.mysql_pass,
-                                        self.cred_obj.sch,self.cred_obj.mysql_ip,self.cred_obj.mysql_port)
+        #self.meta_db_obj = MetaDbHelper(self.cred_obj.mysql_user,self.cred_obj.mysql_pass,
+                                       # self.cred_obj.sch,self.cred_obj.mysql_ip,self.cred_obj.mysql_port)
         #self.meta_conf_obj = MetaFrameworkConfig(step_id=self.step_id, meta_conn=self.meta_db_obj.meta_conn_engine,
         #                                         meta_sch=self.meta_db_obj.meta_sch)
         self.user_conf_obj = UserConfig(step_info)
@@ -158,10 +158,8 @@ class DbksDmsMgr:
 
         elif _tgt_db == "redshift":
 
-            rs_tbl_mgr_obj = RedshiftTblMgr(self.meta_conf_obj.ms_obj
-                                            , self.user_conf_obj
-                                            , self.cred_obj.redshift_user
-                                            , self.cred_obj.redshift_pass)
+            rs_tbl_mgr_obj = RedshiftTblMgr(self.user_conf_obj
+                                  , self.cred_obj)
 
             rs_writer_obj = RedshiftWriter(cred_obj=self.cred_obj
                                            , tbl_obj=rs_tbl_mgr_obj

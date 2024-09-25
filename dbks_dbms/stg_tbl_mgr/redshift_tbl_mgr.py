@@ -2,7 +2,7 @@ from meta_fw.dao.meta_step import MetaStepRecord
 from user_config.user_config_mgr import UserConfig
 from common.logmgr import get_logger
 from db import redshift_connect_mgr
-from dbks_dbms.db_settings import redshift_settings
+#from dbks_dbms.db_settings import redshift_settings
 
 import sqlalchemy
 
@@ -10,22 +10,21 @@ main_logger = get_logger()
 
 
 class RedshiftTblMgr:
-    tgt_to_stg_sch_map_dict = redshift_settings.TGT_TO_STG_SCH_MAP_DICT
+    #tgt_to_stg_sch_map_dict = redshift_settings.TGT_TO_STG_SCH_MAP_DICT
 
-    def __init__(self, meta_step_obj: MetaStepRecord, user_conf_obj: UserConfig, redshift_user, redshift_pass):
-        self.step_id = meta_step_obj.step_id
-
-        self.stg_sch = user_conf_obj.stg_sch
+    def __init__(self,  user_conf_obj: UserConfig, cred_obj):
+        #self.step_id = meta_step_obj.step_id
+        self.stg_sch = user_conf_obj.tgt_sch
         self.tgt_tbl = user_conf_obj.tgt_tbl
         self.tgt_sch = user_conf_obj.tgt_sch
-        self.tgt_db = user_conf_obj.tgt_db
-        self.tgt_port = user_conf_obj.tgt_port
+        self.tgt_db = cred_obj.redshift_ip
+        self.tgt_port = cred_obj.redshift_port
         self.key_col_list = user_conf_obj.key_cols_list
 
-        self.tgt_db_user = redshift_user
-        self.tgt_db_pass = redshift_pass
+        self.tgt_db_user = cred_obj.redshift_user
+        self.tgt_db_pass = cred_obj.redshift_pass
 
-        self.stg_tbl = None
+        self.stg_tbl = user_conf_obj.tgt_tbl+'_udfsync_stg'
         self.hist_sch = None
         self.hist_tbl = None
         self.tgt_conn_engine: sqlalchemy.engine = None
@@ -43,9 +42,9 @@ class RedshiftTblMgr:
         main_logger.info("Target connection created for validating target and stage table")
 
     def set_up_stg_sch_tbl(self):
-        self.stg_tbl = f"stg_{self.tgt_tbl}_{self.step_id}"
+        #self.stg_tbl = f"stg_{self.tgt_tbl}_{self.step_id}"
         try:
-            self.stg_sch = self.tgt_to_stg_sch_map_dict[self.tgt_sch] if self.stg_sch is None else self.stg_sch
+            #self.stg_sch = self.tgt_to_stg_sch_map_dict[self.tgt_sch] if self.stg_sch is None else self.stg_sch
             main_logger.info(f"Stage schema and table derived :{self.stg_sch}.{self.stg_tbl}")
             redshift_connect_mgr.create_table_like(engine=self.tgt_conn_engine
                                                    , src_sch=self.tgt_sch
