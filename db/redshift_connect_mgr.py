@@ -9,7 +9,7 @@ from common.logmgr import get_logger
 main_logger = get_logger()
 
 
-def get_redshift_conn(host, port, db_user, db_password, database=db_settings.DEF_REDSHIFT_DB):
+def get_redshift_conn(host, port, db_user, db_password, database='pii'):
     try:
         # conn = redshift_connector.connect(
         #     host=host,

@@ -72,33 +72,38 @@ class DbksDmsMgr:
                             f"{self.user_conf_obj.tgt_db_type} failed")
 
     def _pipeline_router(self):
+        try:
 
-        #_tgt_sch = self.user_conf_obj.tgt_sch
-        #_tgt_tbl = self.user_conf_obj.tgt_tbl
 
-        #reader_dt_rng_dict = self._get_data_extraction_dt_rng(_tgt_sch, _tgt_tbl)
+            #_tgt_sch = self.user_conf_obj.tgt_sch
+            #_tgt_tbl = self.user_conf_obj.tgt_tbl
 
-        extract_df = self.get_source_df()
-        #print(f" source rows =  {extract_df.count()} ")
-        self.watermark=extract_df.agg(f.when(f.count(f.col("udf_updated_dt")) == 0, None).otherwise(f.max(f.col("udf_updated_dt")))).collect()[0][0]
-        self.write_df_to_tgt(source_df=extract_df)
-        self._log_dms_status('success')
+            #reader_dt_rng_dict = self._get_data_extraction_dt_rng(_tgt_sch, _tgt_tbl)
 
-        # self.validate_and_sync_data()
+            extract_df = self.get_source_df()
+            #print(f" source rows =  {extract_df.count()} ")
+            self.watermark=extract_df.agg(f.when(f.count(f.col("udf_updated_dt")) == 0, None).otherwise(f.max(f.col("udf_updated_dt")))).collect()[0][0]
+            self.write_df_to_tgt(source_df=extract_df)
+            self._log_dms_status('success','ok')
+        except Exception as e:
+            #print(f"Exception occurred while executing DMS {e.args[0][1:200]}")
+            self._log_dms_status('fail',e.args[0][1:200])
+            # self.validate_and_sync_data()
     
-    def _log_dms_status(self, status):        
+    def _log_dms_status(self, status, msg):        
         udf_to_rdbms_sync_key=self.step_id["udf_to_rdbms_sync_key"]
         current_status=status
         watermark_value=self.watermark
         udf_created_dt=dt.datetime.now()
         udf_created_by='UDF_SYNC_FRMWRK'
+        msg=msg
 
         content = udf_to_rdbms_sync_key+'~'+str(udf_created_dt)
         hash_object = hashlib.sha256(content.encode('utf-8'))  
         udf_to_rdbms_sync_log_key = hash_object.hexdigest()
 
 
-        data=(udf_to_rdbms_sync_log_key,udf_to_rdbms_sync_key,current_status,watermark_value,udf_created_dt,udf_created_dt,udf_created_by,udf_created_by)
+        data=(udf_to_rdbms_sync_log_key,udf_to_rdbms_sync_key,current_status,watermark_value,udf_created_dt,udf_created_dt,udf_created_by,udf_created_by,msg)
         schema = spark.table("udf_internal.udf_to_rdbms_sync_log").schema
         spark.createDataFrame([data],schema).write.mode("append").saveAsTable("udf_internal.udf_to_rdbms_sync_log")
         main_logger.info(f"logged status: {status} with watermark {self.watermark} into table udf_internal.udf_to_rdbms_sync_log")
@@ -137,7 +142,8 @@ class DbksDmsMgr:
 
         filter_condition= "1=1" 
         if watermark_value:
-            filter_condition=f"udf_updated_dt >= '{watermark_value}'"
+            filter_condition=f.col("udf_updated_dt") > f.lit(watermark_value).cast('timestamp')
+        main_logger.info(f"filter condition :{filter_condition}")
         source_df=spark.read.format("delta").load(f"/{src_db}/{src_tbl}").where(filter_condition)
         return source_df
 
