@@ -24,8 +24,8 @@ class RedshiftWriter:
                  tbl_obj: RedshiftTblMgr,
                  user_conf_obj: UserConfig, spark_obj: SparkSession):
 
-        self.tgt_db = user_conf_obj.tgt_db
-        self.tgt_port = user_conf_obj.tgt_port
+        self.tgt_db = tbl_obj.tgt_db
+        self.tgt_port = tbl_obj.tgt_port
 
         self.tgt_user = cred_obj.redshift_user
         self.tgt_pass = cred_obj.redshift_pass
@@ -38,24 +38,25 @@ class RedshiftWriter:
         self.tgt_sch = user_conf_obj.tgt_sch
         self.tgt_tbl = user_conf_obj.tgt_tbl
 
-        self.ld_type = user_conf_obj.ld_type
+        self.ld_type = 'APPEND'
         self.key_cols_list = user_conf_obj.key_cols_list
-        self.part_rec_cnt = user_conf_obj.part_rec_count
+        self.part_rec_cnt = 5000
 
         self.spark = spark_obj
-        self.tgt_conn_engine = self.get_sql_alchemy_engine()
+        self.tgt_conn_engine = tbl_obj.tgt_conn_engine
 
     def write_data_to_redshift_tbl(self, extracted_df):
-        conn = self.get_sql_alchemy_engine()
+        
+        conn = self.tgt_conn_engine
 
         if self.ld_type.upper() in [ClsLdType.APPEND, ClsLdType.TRUNC_AND_LOAD]:
             # self.drop_stage_table_before_load()
             self._load_df_to_redshift_stg_tbl(extracted_df)
             main_logger.info("Provisioning data load from dbks to stage table completed")
-            df_cnt = pd.read_sql(f"select count(*) as cnt from {self.stg_sch}.{self.stg_tbl}", conn)
-            main_logger.info(f"Record count after data load in table "
-                             f"{self.stg_sch}.{self.stg_tbl} {df_cnt.to_dict('records')}")
-            self._upsert_stg_to_tgt()
+            #df_cnt = pd.read_sql(f"select count(*) as cnt from {self.stg_sch}.{self.stg_tbl}", conn)
+            #main_logger.info(f"Record count after data load in table "
+            #                 f"{self.stg_sch}.{self.stg_tbl} {df_cnt.to_dict('records')}")
+            #self._upsert_stg_to_tgt()
 
         else:
             raise Exception(f"Unhandled data load type :{self.ld_type}. valid load types :{ClsLdType.__dict__}")
@@ -68,18 +69,12 @@ class RedshiftWriter:
             # self.spark.sql("DROP TABLE IF EXISTS stg_ld_dbks_agg_fin_monthly_history_18232")
             # main_logger.info(self.spark.sql(f"desc {self.stg_sch}.{self.stg_tbl}"))
             # extracted_df.show(10)
-            extracted_df.write.format("com.databricks.spark.redshift") \
-                .option("url", f"jdbc:redshift://{self.tgt_db}:{self.tgt_port}/{settings.DEF_DB}") \
+            extracted_df.write.format("redshift") \
+                .option("url", f"jdbc:redshift://{self.tgt_db}:{self.tgt_port}/prod") \
                 .option("user", self.tgt_user) \
                 .option("password", self.tgt_pass) \
                 .option("dbtable", f"{self.stg_sch}.{self.stg_tbl}") \
-                .option("tempdir", settings.tempS3Dir) \
-                .option('aws_iam_role', settings.RS_SETUP_TEMP_S3IAM) \
-                .option("autoenablessl", "false") \
-                .option("tempformat", "csv") \
-                .option("nullString", "") \
-                .option("nullInt", "") \
-                .mode("append") \
+                .mode("overwrite") \
                 .save()
             main_logger.info(f"Data successfully written into table {self.stg_sch}.{self.stg_tbl}")
         except Exception as e:

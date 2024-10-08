@@ -27,7 +27,7 @@ class RedshiftTblMgr:
         self.stg_tbl = user_conf_obj.tgt_tbl+'_udfsync_stg'
         self.hist_sch = None
         self.hist_tbl = None
-        self.tgt_conn_engine: sqlalchemy.engine = None
+        self.tgt_conn_engine = None
 
         self.set_up_tgt_conn()
         self.set_up_stg_sch_tbl()
@@ -38,21 +38,29 @@ class RedshiftTblMgr:
                                                                       port=self.tgt_port,
                                                                       db_user=self.tgt_db_user,
                                                                       db_password=self.tgt_db_pass
-                                                                      )
-        main_logger.info("Target connection created for validating target and stage table")
+                                                                     )
+       
+        #main_logger.info("Target connection created for validating target and stage table")
 
     def set_up_stg_sch_tbl(self):
-        #self.stg_tbl = f"stg_{self.tgt_tbl}_{self.step_id}"
+        main_logger.info(f"setting up stage table {self.stg_sch}.{self.stg_tbl}")
         try:
-            #self.stg_sch = self.tgt_to_stg_sch_map_dict[self.tgt_sch] if self.stg_sch is None else self.stg_sch
-            main_logger.info(f"Stage schema and table derived :{self.stg_sch}.{self.stg_tbl}")
-            redshift_connect_mgr.create_table_like(engine=self.tgt_conn_engine
-                                                   , src_sch=self.tgt_sch
-                                                   , src_tbl=self.tgt_tbl
-                                                   , tgt_sch=self.stg_sch
-                                                   , tgt_tbl=self.stg_tbl
-                                                   , drop_stg_flg=True
-                                                   )
+            cursor = self.tgt_conn_engine.cursor()
+            cursor.execute(f"SELECT 1  FROM information_schema.tables  WHERE table_schema = '{self.stg_sch}' AND table_name = '{self.stg_tbl}'")
+            found = cursor.fetchone()
+            main_logger.info(f"metadata result {found}")
+            if  found is None:
+                main_logger.info(f"creating stage table {self.stg_sch}.{self.stg_tbl}")        
+                stg_ddl = f" create table {self.stg_sch}.{self.stg_tbl} as select * from {self.tgt_sch}.{self.tgt_tbl} where 1=2 "
+                cursor.execute(stg_ddl)
+                main_logger.info(f"Stage table {self.stg_sch}.{self.stg_tbl} created")
+            else:
+                main_logger.info(f"Stage table {self.stg_sch}.{self.stg_tbl} already exists")
+            cursor.close()
+            
+
         except KeyError as e:
             main_logger.error(f"Target schema {self.tgt_sch} to stage table schema mapping not found")
             raise e
+        except Exception as e:
+            main_logger.info(f"Error setting up stage table {self.stg_sch}.{self.stg_tbl} {e}")

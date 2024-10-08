@@ -22,7 +22,7 @@ class MysqlWriter:
         # self.tgt_port = mfc_obj.ms_obj.tgt_port
         self.tgt_db = tbl_obj.tgt_db
         self.tgt_port = tbl_obj.tgt_port
-        print(f"Port from my sql writer {self.tgt_port}")
+        #print(f"Port from my sql writer {self.tgt_port}")
 
         self.tgt_user = cred_obj.mysql_user
         self.tgt_pass = cred_obj.mysql_pass

@@ -9,30 +9,31 @@ from common.logmgr import get_logger
 main_logger = get_logger()
 
 
-def get_redshift_conn(host, port, db_user, db_password, database='pii'):
+def get_redshift_conn(host, port, db_user, db_password, database='prod'):
     try:
-        # conn = redshift_connector.connect(
-        #     host=host,
-        #     port=int(port),
-        #     database=database,
-        #     user=db_user,
-        #     password=db_password
-        # )
-        engine = create_engine(
-            f"postgresql+psycopg2://{db_user}:{db_password}@{host}:{port}/{database}"
+        conn = redshift_connector.connect(
+            host=host,
+            database=database,
+            user=db_user,
+            password=db_password,
+            port=port
         )
-        sql = "select concat(USER(),' connection success') as status"
-        df = pd.read_sql(sql="select 'CONNECTION SUCCESS' as status", con=engine)
-        if df is not None:
-            main_logger.info(f"Connection to redshift success : {host}:{port}@{db_user}/{database}")
-            return engine
+        cursor = conn.cursor()
+
+        # Run a test query
+        cursor.execute("SELECT current_database();")
+        result = cursor.fetchone()        
+        main_logger.info(f"Connection successful to Redshift database: {result}")
+        cursor.close()
+        return conn
+
 
     except Exception as e:
         main_logger.error(f"Connection failed {host}:{port}:{db_user}:{db_password}")
         raise e
 
 
-def create_table_like(engine: sqlalchemy.engine, src_sch, src_tbl, tgt_sch, tgt_tbl, drop_stg_flg=False):
+def create_table_like(engine, src_sch, src_tbl, tgt_sch, tgt_tbl, drop_stg_flg=False):
     # Define cursor
     # cur = engine.connect().cursor()
     with engine.connect() as connection:
