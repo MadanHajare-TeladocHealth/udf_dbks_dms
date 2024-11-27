@@ -4,7 +4,9 @@ from common.logmgr import get_logger
 from db import redshift_connect_mgr
 #from dbks_dbms.db_settings import redshift_settings
 
-import sqlalchemy
+from files.db_connector import DataConnector
+
+#import sqlalchemy
 
 main_logger = get_logger()
 
@@ -14,7 +16,7 @@ class RedshiftTblMgr:
 
     def __init__(self,  user_conf_obj: UserConfig, cred_obj):
         #self.step_id = meta_step_obj.step_id
-        self.stg_sch = user_conf_obj.tgt_sch
+        self.stg_sch = 'data_sciences'#user_conf_obj.tgt_sch
         self.tgt_tbl = user_conf_obj.tgt_tbl
         self.tgt_sch = user_conf_obj.tgt_sch
         self.tgt_db = cred_obj.redshift_ip
@@ -30,15 +32,11 @@ class RedshiftTblMgr:
         self.tgt_conn_engine = None
 
         self.set_up_tgt_conn()
-        self.set_up_stg_sch_tbl()
+        #self.set_up_stg_sch_tbl()
 
     def set_up_tgt_conn(self):
         main_logger.info(f"setting up redshift target connection using host :{self.tgt_db}:{self.tgt_port}")
-        self.tgt_conn_engine = redshift_connect_mgr.get_redshift_conn(host=self.tgt_db,
-                                                                      port=self.tgt_port,
-                                                                      db_user=self.tgt_db_user,
-                                                                      db_password=self.tgt_db_pass
-                                                                     )
+        self.tgt_conn_engine = DataConnector(format='redshift', database='prod')
        
         #main_logger.info("Target connection created for validating target and stage table")
 

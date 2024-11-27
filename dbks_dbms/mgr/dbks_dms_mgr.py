@@ -87,8 +87,9 @@ class DbksDmsMgr:
             self._log_dms_status('success','ok')
         except Exception as e:
             #print(f"Exception occurred while executing DMS {e.args[0][1:200]}")
-            self._log_dms_status('fail',e.args[0][1:200])
+            self._log_dms_status('fail',e)
             # self.validate_and_sync_data()
+            raise
     
     def _log_dms_status(self, status, msg):        
         udf_to_rdbms_sync_key=self.step_id["udf_to_rdbms_sync_key"]
@@ -144,7 +145,9 @@ class DbksDmsMgr:
         if watermark_value:
             filter_condition=f.col("udf_updated_dt") > f.lit(watermark_value).cast('timestamp')
         main_logger.info(f"filter condition :{filter_condition}")
+        main_logger.info(f"Reading data from source table :{src_db}/{src_tbl}")
         source_df=spark.read.format("delta").load(f"/{src_db}/{src_tbl}").where(filter_condition)
+        main_logger.info(f"source_df count :{source_df.count()}")
         return source_df
 
     def write_df_to_tgt(self, source_df):
